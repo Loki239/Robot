@@ -37,7 +37,7 @@ void RenderTask() {
     auto pDrawList = ImGui::GetWindowDrawList();
 
 
-    // добавляем в список рисования круг
+    // рисуем точку
     pDrawList->AddCircleFilled(
             sf::Vector2<int>(400, 400),
             3,
