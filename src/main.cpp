@@ -154,18 +154,17 @@ void RenderTask() {
     auto pDrawList = ImGui::GetWindowDrawList();
 
 
-        // добавляем в список рисования круг
-        pDrawList->AddCircleFilled(
-                sf::Vector2<int>(100, 100),
-                3,
-                clr,
-                20
-        );
+    // добавляем в список рисования круг
+    pDrawList->AddCircleFilled(
+            sf::Vector2<int>(400, 400),
+            3,
+            ImColor(100, 200, 150),
+            20
+    );
 
     // заканчиваем рисование окна
     ImGui::End();
 }
-
 
 
 // главный метод
