@@ -4,6 +4,8 @@
 
 #include <imgui-SFML.h>
 #include <imgui.h>
+#include <valarray>
+#include <iostream>
 
 // Ширина окна
 static const int WINDOW_SIZE_X = 800;
@@ -45,8 +47,45 @@ void RenderTask() {
             20
     );
 
+
+    // опорные точки линии
+    sf::Vector2<int> pointA = {450, 550};
+    sf::Vector2<int> pointB = {550, 450};
+
+    // получаем максимальную длину отрезка на экране, как длину диагонали экрана
+    double maxDistance = std::sqrt(WINDOW_SIZE_X * WINDOW_SIZE_X + WINDOW_SIZE_Y * WINDOW_SIZE_Y);
+
+    // получаем новые точки для рисования, которые гарантируют, что линия
+    // будет нарисована до границ экрана
+    sf::Vector2<int> renderPointA = sf::Vector2<int>(
+            pointA.x + (int) ((pointA.x - pointB.x) * maxDistance),
+            pointA.y + (int) ((pointA.y - pointB.y) * maxDistance)
+    );
+    sf::Vector2<int> renderPointB = sf::Vector2<int>(
+            pointA.x - (int) ((pointA.x - pointB.x) * maxDistance),
+            pointA.y - (int) ((pointA.y - pointB.y) * maxDistance)
+    );
+
+    // рисуем линию
+    pDrawList->AddLine(
+            renderPointA,
+            renderPointB,
+            ImColor(200, 150, 100),
+            0.5f
+    );
+
+    // рисуем отрезок
+    pDrawList->AddLine(
+            pointA,
+            pointB,
+            ImColor(200, 100, 150),
+            1.5f
+    );
+
+
     // заканчиваем рисование окна
     ImGui::End();
+
 }
 
 
