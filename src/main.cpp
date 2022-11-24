@@ -1,739 +1,89 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <map>
+#include <SFML/Graphics.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
 
 #include <imgui-SFML.h>
 #include <imgui.h>
-#include <valarray>
-#include <iostream>
-
-// Ширина окна
-static const int WINDOW_SIZE_X = 800;
-// Высота окна
-static const int WINDOW_SIZE_Y = 800;
-
-// цвет фона
-static sf::Color bgColor;
-// значение цвета по умолчанию
-float color[3] = {0.12f, 0.12f, 0.13f};
-
-// преобразование целочисленного вектора в вещественный
-static sf::Vector2f toFloat(sf::Vector2i v) {
-    return {(float) v.x, (float) v.y};
-}
-
-// преобразование вещественного вектора в целочисленный
-static sf::Vector2i toInt(sf::Vector2f v) {
-    return {(int) v.x, (int) v.y};
-}
-
-// поворот вектора на угол
-static sf::Vector2f rotated(sf::Vector2f v, float a) {
-    return {
-            v.x * std::cos(a) - v.y * std::sin(a),
-            v.x * std::sin(a) + v.y * std::cos(a)
-    };
-}
-
-// длина вектора
-static float length(sf::Vector2f f) {
-    return std::sqrt(f.x * f.x + f.y * f.y);
-}
-
-// нормирование вектора
-static sf::Vector2f norm(sf::Vector2f v) {
-    float ln = length(v);
-    return {v.x / ln, v.y / ln};
-}
-
-// векторное умножение двумерных векторов
-static float cross(sf::Vector2f a, sf::Vector2f b) {
-    return a.x * b.y - a.y * b.x;
-}
-
-// расстояние от прямой, образованной первыми двумя точками, до третьей
-static float distance(sf::Vector2f pointA, sf::Vector2f pointB, sf::Vector2f pointC) {
-    float a = pointA.y - pointB.y;
-    float b = pointB.x - pointA.x;
-    float c = pointA.x * pointB.y - pointB.x * pointA.y;
-
-    return std::abs(a * pointC.x + b * pointC.y + c) / std::sqrt(a * a + b * b);
-}
-
-// сумма векторов
-static sf::Vector2f sum(sf::Vector2f a, sf::Vector2f b) {
-    return {a.x + b.x, a.y + b.y};
-}
-
-// разность векторов
-static sf::Vector2f subtract(sf::Vector2f a, sf::Vector2f b) {
-    return {a.x - b.x, a.y - b.y};
-}
-
-// сумма векторов
-static sf::Vector2i sum(sf::Vector2i a, sf::Vector2i b) {
-    return {a.x + b.x, a.y + b.y};
-}
-
-// разность векторов
-static sf::Vector2i subtract(sf::Vector2i a, sf::Vector2i b) {
-    return {a.x - b.x, a.y - b.y};
-}
-
-// умножение вектора на число
-static sf::Vector2f mul(sf::Vector2f a, float b) {
-    return {a.x * b, a.y * b};
-}
-
-
-// знак переменной
-static float sign(float a) {
-    if (a > 0)
-        return -1;
-    else if (a < 0)
-        return 1;
-    else
-        return 0;
-}
-
-// задать цвет фона по вещественному массиву компонент
-static void setColor(float *pDouble) {
-    bgColor.r = static_cast<sf::Uint8>(pDouble[0] * 255.f);
-    bgColor.g = static_cast<sf::Uint8>(pDouble[1] * 255.f);
-    bgColor.b = static_cast<sf::Uint8>(pDouble[2] * 255.f);
-}
-
-// нарисовать точку
-void renderPoint() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            sf::Vector2i(400, 400),
-            3,
-            ImColor(100, 200, 150),
-            20
-    );
-}
-
-// нарисовать линию
-void renderLine() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-
-    // опорные точки линии
-    sf::Vector2i pointA = {450, 550};
-    sf::Vector2i pointB = {550, 450};
-
-    // получаем максимальную длину отрезка на экране, как длину диагонали экрана
-    double maxDistance = std::sqrt(WINDOW_SIZE_X * WINDOW_SIZE_X + WINDOW_SIZE_Y * WINDOW_SIZE_Y);
-
-    // получаем новые точки для рисования, которые гарантируют, что линия
-    // будет нарисована до границ экрана
-    sf::Vector2i renderPointA = sf::Vector2i(
-            pointA.x + (int) ((pointA.x - pointB.x) * maxDistance),
-            pointA.y + (int) ((pointA.y - pointB.y) * maxDistance)
-    );
-    sf::Vector2i renderPointB = sf::Vector2i(
-            pointA.x - (int) ((pointA.x - pointB.x) * maxDistance),
-            pointA.y - (int) ((pointA.y - pointB.y) * maxDistance)
-    );
-
-    // рисуем линию
-    pDrawList->AddLine(
-            renderPointA,
-            renderPointB,
-            ImColor(200, 150, 100),
-            0.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointA,
-            pointB,
-            ImColor(200, 100, 150),
-            1.5f
-    );
-}
-
-// рисование треугольников
-void renderTriangles() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-    // опорные точки треугольника
-    sf::Vector2i pointA = {430, 530};
-    sf::Vector2i pointB = {530, 400};
-    sf::Vector2i pointC = {450, 450};
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointA,
-            pointB,
-            ImColor(200, 150, 150),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointB,
-            pointC,
-            ImColor(200, 150, 150),
-            1.5f
-    );
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointC,
-            pointA,
-            ImColor(200, 150, 150),
-            1.5f
-    );
-
-
-    // опорные точки треугольника
-    pointA = {430, 300};
-    pointB = {530, 310};
-    pointC = {350, 250};
-
-
-    // рисуем треугольник
-    pDrawList->AddTriangleFilled(
-            pointA,
-            pointB,
-            pointC,
-            ImColor(150, 200, 150)
-    );
-
-}
-
-// рисуем круг и окружность
-void renderCircles() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-    // опорная точка окружности
-    sf::Vector2i pointA = {230, 300};
-
-    // рисуем окружность
-    pDrawList->AddCircle(
-            pointA,
-            30,
-            ImColor(150, 200, 150)
-    );
-
-    // опорная точка круга
-    pointA = {230, 450};
-
-    // рисуем окружность
-    pDrawList->AddCircleFilled(
-            pointA,
-            30,
-            ImColor(150, 150, 200)
-    );
-}
-
-// рисуем параллельный прямоугольник
-void renderParallelRect() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-
-    // опорные точки параллельного четырёхугольника
-    sf::Vector2i pointA = {50, 50};
-    sf::Vector2i pointC = {200, 150};
-
-    // вспомогательные точки параллельного четырёхугольника
-    sf::Vector2i pointB = {pointA.x, pointC.y};
-    sf::Vector2i pointD = {pointC.x, pointA.y};
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointA,
-            pointB,
-            ImColor(200, 150, 100),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointB,
-            pointC,
-            ImColor(200, 150, 100),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointC,
-            pointD,
-            ImColor(200, 150, 100),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointD,
-            pointA,
-            ImColor(200, 150, 100),
-            1.5f
-    );
-}
-
-// рисуем прямоугольник
-void renderRect() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-
-    // первая вершина
-    sf::Vector2i pointA = {300, 100};
-    // вторая вершина
-    sf::Vector2i pointB = {500, 200};
-    // точка на противоположной стороне
-    sf::Vector2i pointP = {300, 50};
-
-    // рассчитываем векторы для векторного умножения
-    sf::Vector2i AB = subtract(pointB, pointA);
-    sf::Vector2i AP = subtract(pointP, pointA);
-
-    // определяем направление смещения(добавляем минус, т.к. ось y СК экрана смотрит вниз.
-    float direction = -sign(cross(toFloat(AB), toFloat(AP)));
-
-    // рассчитываем расстояние от прямой до точки
-    float dist = distance(toFloat(pointA), toFloat(pointB), toFloat(pointP));
-
-    // получаем единичный вектор направления смещения
-    sf::Vector2f n = norm(rotated(toFloat(AB), ((float) M_PI / 2.f * direction)));
-
-    // получаем вектор смещения
-    sf::Vector2i offset = toInt(mul(n, dist));
-
-    // находим координаты вторых двух вершин прямоугольника
-    sf::Vector2i pointC = sum(pointB, offset);
-    sf::Vector2i pointD = sum(pointA, offset);
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointA,
-            pointB,
-            ImColor(100, 150, 200),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointB,
-            pointC,
-            ImColor(100, 150, 200),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointC,
-            pointD,
-            ImColor(100, 150, 200),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointD,
-            pointA,
-            ImColor(100, 150, 200),
-            1.5f
-    );
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointA,
-            3,
-            ImColor(200, 100, 150)
-    );
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointB,
-            3,
-            ImColor(200, 100, 150)
-    );
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointP,
-            3,
-            ImColor(200, 100, 150)
-    );
-}
-
-// рисуем параллелограмм
-void renderParallel() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-
-    // первая вершина
-    sf::Vector2i pointA = {650, 150};
-    // вторая вершина
-    sf::Vector2i pointB = {600, 50};
-    // третья вершина
-    sf::Vector2i pointC = {700, 100};
-
-    // определяем вектор смещения
-    sf::Vector2i AB = subtract(pointA, pointB);
-    sf::Vector2i pointD = sum(pointC, AB);
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointA,
-            pointB,
-            ImColor(150, 100, 200),
-            1.5f
-    );
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointB,
-            pointC,
-            ImColor(150, 100, 200),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointC,
-            pointD,
-            ImColor(150, 100, 200),
-            1.5f
-    );
-
-    // рисуем отрезок
-    pDrawList->AddLine(
-            pointD,
-            pointA,
-            ImColor(150, 100, 200),
-            1.5f
-    );
-
-
-    // рисуем опорные точки
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointA,
-            3,
-            ImColor(200, 100, 150)
-    );
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointB,
-            3,
-            ImColor(200, 100, 150)
-    );
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointC,
-            3,
-            ImColor(200, 100, 150)
-    );
-
-}
-
-// рисуем угол
-void renderCorner() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-
-    // вершина угла
-    sf::Vector2i pointA = {150, 400};
-    // опорные точки
-    sf::Vector2i pointB = {50, 300};
-    sf::Vector2i pointC = {80, 500};
-
-    // определяем вектор смещения
-    sf::Vector2i AB = subtract(pointB, pointA);
-    sf::Vector2i AC = subtract(pointC, pointA);
-
-
-    // получаем максимальную длину отрезка на экране, как длину диагонали экрана
-    double maxDistance = std::sqrt(WINDOW_SIZE_X * WINDOW_SIZE_X + WINDOW_SIZE_Y * WINDOW_SIZE_Y);
-
-    // получаем новые точки для рисования, которые гарантируют, что линия
-    // будет нарисована до границ экрана
-    sf::Vector2i renderPointB = sum(pointA, toInt(mul(toFloat(AB), maxDistance)));
-    sf::Vector2i renderPointC = sum(pointA, toInt(mul(toFloat(AC), maxDistance)));
-
-
-    // рисуем линию
-    pDrawList->AddLine(
-            pointA,
-            renderPointB,
-            ImColor(200, 150, 100),
-            0.5f
-    );
-
-
-    // рисуем линию
-    pDrawList->AddLine(
-            pointA,
-            renderPointC,
-            ImColor(200, 150, 100),
-            0.5f
-    );
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointA,
-            3,
-            ImColor(200, 100, 150)
-    );
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointB,
-            3,
-            ImColor(200, 100, 150)
-    );
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointC,
-            3,
-            ImColor(200, 100, 150)
-    );
-}
-
-// рисуем полосу
-void renderBand() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-
-    // первая точка
-    sf::Vector2i pointA = {400, 700};
-    // вторая точка
-    sf::Vector2i pointB = {700, 500};
-    // отрезок AB
-    sf::Vector2i AB = subtract(pointB, pointA);
-    // толщина линии
-    float width = 40.f;
-
-    // вектор направления для откладывания ширины
-    sf::Vector2f wd = norm(rotated(toFloat(AB), M_PI / 2));
-    sf::Vector2i widthDirection = toInt(mul(wd, width / 2));
-
-
-    // получаем максимальную длину отрезка на экране, как длину диагонали экрана
-    double maxDistance = std::sqrt(WINDOW_SIZE_X * WINDOW_SIZE_X + WINDOW_SIZE_Y * WINDOW_SIZE_Y);
-
-    sf::Vector2i lineDirection = toInt(mul(norm(toFloat(AB)), maxDistance));
-
-    // получаем опорные точки для откладывания направления
-    sf::Vector2i basePointA = sum(pointA, widthDirection);
-    sf::Vector2i basePointB = subtract(pointA, widthDirection);
-
-    // получаем точки рисования
-    sf::Vector2i renderPointA = sum(basePointA, lineDirection);
-    sf::Vector2i renderPointB = sum(basePointB, lineDirection);
-    sf::Vector2i renderPointC = subtract(basePointB, lineDirection);
-    sf::Vector2i renderPointD = subtract(basePointA, lineDirection);
-
-    // рисуем линию
-    pDrawList->AddLine(
-            renderPointB,
-            renderPointC,
-            ImColor(150, 200, 100),
-            0.5f
-    );
-
-    // рисуем линию
-    pDrawList->AddLine(
-            renderPointD,
-            renderPointA,
-            ImColor(150, 200, 100),
-            0.5f
-    );
-
-
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointA,
-            3,
-            ImColor(200, 100, 150)
-    );
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointB,
-            3,
-            ImColor(200, 100, 150)
-    );
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            basePointA,
-            3,
-            ImColor(200, 100, 150)
-    );
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            basePointB,
-            3,
-            ImColor(200, 100, 150)
-    );
-}
-
-// рисуем широкий луч
-void renderWideBeam() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-
-    // первая точка
-    sf::Vector2i pointA = {100, 600};
-    // опорные точки
-    sf::Vector2i pointB = {150, 650};
-    // отрезок AB
-    sf::Vector2i AB = subtract(pointB, pointA);
-
-
-    // получаем максимальную длину отрезка на экране, как длину диагонали экрана
-    double maxDistance = std::sqrt(WINDOW_SIZE_X * WINDOW_SIZE_X + WINDOW_SIZE_Y * WINDOW_SIZE_Y);
-
-    // создаём вектор направления для рисования условно бесконечной полосы
-    sf::Vector2i lineDirection = toInt(mul(norm(rotated(toFloat(AB), M_PI / 2)), maxDistance));
-
-    // получаем точки рисования
-    sf::Vector2i renderPointC = sum(pointA, lineDirection);
-    sf::Vector2i renderPointD = sum(pointB, lineDirection);
-
-    // рисуем линию
-    pDrawList->AddLine(
-            pointA,
-            pointB,
-            ImColor(150, 200, 100),
-            0.5f
-    );
-
-    // рисуем линию
-    pDrawList->AddLine(
-            pointA,
-            renderPointC,
-            ImColor(150, 200, 100),
-            0.5f
-    );
-
-    // рисуем линию
-    pDrawList->AddLine(
-            pointB,
-            renderPointD,
-            ImColor(150, 200, 100),
-            0.5f
-    );
-
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointA,
-            3,
-            ImColor(200, 100, 150)
-    );
-    // рисуем точку
-    pDrawList->AddCircleFilled(
-            pointB,
-            3,
-            ImColor(200, 100, 150)
-    );
-
-}
-
-
-// рисуем многоугольник
-void renderPolygon() {
-    // получаем список примитивов, которые будут нарисованы
-    auto pDrawList = ImGui::GetWindowDrawList();
-
-    // список вершин
-    ImVec2 lst[5] = {
-            ImVec2(200, 550),
-            ImVec2(250, 550),
-            ImVec2(290, 600),
-            ImVec2(190, 700),
-            ImVec2(160, 700),
-    };
-
-    // рисуем закрашенный многоугольник
-    pDrawList->AddConvexPolyFilled(
-            lst,
-            5,
-            ImColor(150, 150, 200)
-    );
-
-    // рисуем многоугольник линиями
-    pDrawList->AddPolyline(
-            lst,
-            5,
-            ImColor(200, 200, 200),
-            ImDrawListFlags_AntiAliasedLines,
-            2.5
-    );
-
-    // рисуем опорные точки
-    for (ImVec2 pos: lst) {
-        // рисуем точку
-        pDrawList->AddCircleFilled(
-                pos,
-                3,
-                ImColor(200, 100, 150)
-        );
-    }
-
-}
-
-
-// рисование задачи на невидимом окне во всё окно приложения
-void RenderTask() {
-    // задаём левый верхний край невидимого окна
-    ImGui::SetNextWindowPos(ImVec2(0, 0));
-    // задаём правый нижний край невидимого окна
-    ImGui::SetNextWindowSize(ImVec2(WINDOW_SIZE_X, WINDOW_SIZE_Y));
-    // создаём невидимое окно
-    ImGui::Begin("Overlay", nullptr,
-                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                 ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground);
-
-
-    // нарисовать точку
-    renderPoint();
-    // нарисовать линию
-    renderLine();
-    // рисование треугольников
-    renderTriangles();
-    // рисуем круг и окружность
-    renderCircles();
-    // рисуем параллельный прямоугольник
-    renderParallelRect();
-    // рисуем прямоугольник
-    renderRect();
-    // рисуем параллелограмм
-    renderParallel();
-    // рисуем угол
-    renderCorner();
-    // рисуем полосу
-    renderBand();
-    // рисуем широкий луч
-    renderWideBeam();
-    // рисуем многоугольник
-    renderPolygon();
-
-
-    // заканчиваем рисование окна
-    ImGui::End();
-
-}
-
-
-// главный метод
+using namespace std;
+map <string, long double> form { // Структура данных, отвечающая за значение данной физической величины, в противном случае это 0. В теории, сюда можно закинуть рандомные константы для удобства дебага
+        {"VO", 0},
+        {"t", 0},
+        {"t_end", 0},
+        {"V_end", 0},
+        {"m", 0},
+        {"g", 9.81}
+
+};
+map <string, bool> known { // Структура данных, отвечающая за то, знаем ли мы данную физическую величину
+        {"VO", false},
+        {"t",  false},
+        {"t_end", false},
+        {"V_end", false},
+        {"m", false},
+        {"g", true}
+
+};
+
+vector <string> claims { // Вектор, хранящий физические формулы
+    "F=m*a",
+    "F_g=m*g",
+    "p=F/s",
+    "x=x0+V0*t+a*(t^2)/2",
+    "F_arch=po_fluid*g*h"
+};
+
+
+void get_it(vector<string> &var, string equ); // Функция, закладывающая в ПУСТОЙ вектор, переданный по ссылке, величины, известные в формуле
+void get_it_short(vector<string> &var, string equ); // Функция, закладывающая в ПУСТОЙ вектор, переданный по ссылке, величины, известные в формуле, ЗАБИВАЯ на степени. Это удобно, т.к. в некоторых формулах нужна лишь переменная, а ее значение мы знаем, тогда знаем значение ее квадрата и т.п.
+template<typename T> void out_vec (vector<T>& a); // Функция вывода любого вектора
+template<typename T> void out_test (vector<T>& a); // Функция тестового вывода вектора (вывод не распространяется в консоль тестирующей системы, в Сlion подсвечивается красным
+inline void get_beauty (string inputt, vector<string>& input);
+bool number_test (string s); // Эта функция проверяет,  является ли строка числом. Необходимо для того, чтобы понять, что на самом деле является неизвестным, а что константой
+vector<string> find_form(vector<vector <string>> tex, vector<string> claims, vector<string> &input, map<string, bool> &known, map<string, double> &form);
+long double convertation_system_value(string input);
+bool num (char h);
+short num_value(char h);
 int main() {
+    /*
+    // time
+    auto now = chrono::system_clock::now();
+    time_t end_time = chrono::system_clock::to_time_t(now);
+    cerr << ctime(&end_time) << '\n';
+
+    ios_base::sync_with_stdio(false);
+    cin.tie(nullptr);
+    cout.tie(nullptr);
+    cout.precision(10);
+
+    vector<vector<string>> tex; // в этом векторе лежат все данные формул (отсортированные)
+    for(int i = 0; i < claims.size(); i++){
+        vector <string> var;
+        get_it_short(var, claims[i]);
+        sort(var.begin(), var.end());
+        tex.push_back(var);
+        out_test(tex[i]); // ЗДЕСЬ ЛЕЖИТ ТЕСТОВЫЙ ВЫВОД ВЕКТОРА ФОРМУЛ
+    } // Вектор заполнился всеми данными формул
+
+    vector <string> input; // Вектор входных данных
+    cin.ignore(); // команда, НЕОБХОДИМАЯ для нормальной работы гетлайна
+    string input_full;
+    getline(cin, input_full); //  Осторожно, ввод необходимо начинать С ПРОБЕЛА и В ОДНУ СТРОКУ. Используется getline, чтобы программа не зависала при каждом использовании из-за неизвестного количества переменных.
+    get_beauty(input_full, input); // теперь в векторе input лежат данные задач
+    sort(input.begin(), input.end()); // СОРТИРОВКА ВЕКТОРА ВВОДА, ПРИ ИЗМЕНЕНИИ СПОСОБА ВВОДА ТРЕБУЕТСЯ ОБРАТИТЬ ОСОБОЕ ВНИМАНИЕ
+    */
+
     // создаём окно для рисования
-    sf::RenderWindow window(sf::VideoMode(WINDOW_SIZE_X, WINDOW_SIZE_Y), "Geometry Project 10");
+    sf::RenderWindow window(sf::VideoMode(1280, 720), "ImGui + SFML = <3");
     // задаём частоту перерисовки окна
     window.setFramerateLimit(60);
     // инициализация imgui+sfml
     ImGui::SFML::Init(window);
-
-    // задаём цвет фона
-    setColor(color);
 
     // переменная таймера
     sf::Clock deltaClock;
@@ -756,11 +106,11 @@ int main() {
         // запускаем обновление окна по таймеру с заданной частотой
         ImGui::SFML::Update(window, deltaClock.restart());
 
-        // рисование задания
-        RenderTask();
+        // рисуем демонстрационное окно
+        ImGui::ShowDemoWindow();
 
         // очищаем окно
-        window.clear(bgColor);
+        window.clear();
         // рисуем по окну средствами imgui+sfml
         ImGui::SFML::Render(window);
         // отображаем изменения на окне
@@ -770,5 +120,240 @@ int main() {
     // завершаем работу imgui+sfml
     ImGui::SFML::Shutdown();
 
+
+
     return 0;
 }
+
+short num_value(char h)
+{
+    return int(h-'0');
+}
+
+bool num (char h)
+{
+    int ch = int(h-'0');
+    if(ch == 1 || ch == 2 || ch == 3 || ch == 4 || ch == 5 || ch == 6 || ch == 7 || ch == 8 || ch == 9 || ch == 0 || h == '.')
+    {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+long double convertation_system_value(string input)
+{
+    long double value1 = 0;
+    long double value2 = 0;
+    string quantity;
+    bool point = false;
+    for(int i = 0; i < input.size(); i++)
+    {
+        if(input[i] == '.')
+        {
+            if(point == true)
+            {
+                cout << "FATAL ERROR";
+            }
+            point = true;
+            continue;
+        }
+        if(num(input[i]) == true )
+        {
+            if(point == false){
+                value1 *= 10;
+                value1 += num_value(input[i]);
+                continue;}
+            else
+            {
+                value2 *= 10;
+                value2 += num_value(input[i]);
+            }
+        }
+        else {
+            quantity += input[i];
+        }
+    }
+    while(value2 > 1)
+    {
+        value2 /= 10;
+    }
+    return value1 + value2;
+}
+
+
+
+
+void get_it(vector<string> &var, string equ)
+{
+string period;
+for(int i = 0; i < equ.size(); i++)
+{
+char h;
+h = equ[i];
+if(h != ')' && h != '(' && h != '=' && h != '*' && h != '-' && h != '/' && h != '+')
+{
+period += h;
+}
+else {
+    if(number_test(period) == false)
+    {
+        var.push_back(period);
+    }
+period.clear();
+}
+}
+if(period.empty())
+{
+
+} else
+{
+    if(number_test(period) == false)
+    {
+        var.push_back(period);
+    }
+period.clear();
+}
+return;
+}
+
+void get_it_short(vector<string> &var, string equ)
+{
+    string period;
+    for(int i = 0; i < equ.size(); i++)
+    {
+        char h;
+        h = equ[i];
+        if(h != ')' && h != '(' && h != '=' && h != '*' && h != '-' && h != '/' && h != '+' && h!= '^')
+        {
+            period += h;
+        }
+        else {
+            if(number_test(period) == false)
+            {
+                var.push_back(period);
+            }
+            period.clear();
+        }
+    }
+    if(period.empty())
+    {
+
+    } else
+    {
+        if(number_test(period) == false)
+        {
+            var.push_back(period);
+        }
+        period.clear();
+    }
+    return;
+}
+
+template<typename T> void out_vec (vector<T>& a){
+    for(int i = 0; i < a.size(); ++i){
+        cout << a[i] << " ";
+    }
+    cout << '\n';
+}
+
+template<typename T> void out_test (vector<T>& a){
+    for(int i = 0; i < a.size(); ++i){
+        cerr << a[i] << " ";
+    }
+    cerr << '\n';
+}
+
+inline void get_beauty (string inputt, vector<string> &input)
+{
+    string gap;
+    for(int i = 0; i < inputt.size(); i++)
+    {
+        if(inputt[i] == ' ')
+        {
+            input.push_back(gap);
+            gap.clear();
+        } else
+        {
+            gap += inputt[i];
+        }
+    }
+    input.push_back(gap);
+    gap.clear();
+    return;
+}
+
+bool number_test (string s)
+{
+    for(int i = 0; i < s.size(); i++)
+    {
+        if(s[i] != '0' && s[i] != '1' && s[i] != '2' && s[i] != '3' && s[i] != '4' && s[i] != '5' && s[i] != '6' && s[i] != '7' && s[i] != '8' && s[i] != '9' && s[i] != '.')
+        {
+            return false;
+        }
+    }
+    return true;
+}
+vector<string> find_form(vector<vector <string>> tex, vector<string> claims, vector<string> &input, map<string, bool> &known, map<string, double> &form)
+{
+    vector <string> ret; // Вектор, который будет возвращать наша функция
+    int new_value = 0;
+    while(true){
+      for(int i = 0; i < tex.size(); i++)
+      {
+          vector <string> interval = tex[i];
+          bool flag = true;
+          bool destr = false;
+          for(int j = 0; j < interval.size(); j++)
+          {
+              bool flag2 = false;
+              for(int l = 0; l < input.size(); l++)
+              {
+                  if(interval[j] == input[l])
+                  {
+                      flag2 = true;
+                      break;
+                  }
+              }
+              if(flag2 == false)
+              {
+                  if(flag == true)
+                  {
+                      flag = false;
+                  }
+                  else
+                  {
+                      destr = true;
+                      break;
+                  }
+              }
+          }
+          if(destr == true) {
+              continue;
+          }
+      }}
+      return ret;
+}
+/*
+ string equ;
+ cin >> equ;
+ string left, right;
+ bool flag = true;
+
+ for(int i = 0; i < equ.size(); i++)
+ {
+     if(equ[i] == '=')
+     {
+         flag = false;
+         continue;
+     }
+     if(flag == true)
+     {
+         left = left + equ[i];
+     } else
+     {
+         right = right + equ[i];
+     }
+ }
+
+*/
