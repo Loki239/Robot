@@ -10,6 +10,9 @@
 
 #include <imgui-SFML.h>
 #include <imgui.h>
+
+#define all(x) (x).begin(),(x).end()
+
 using namespace std;
 map <string, long double> form { // Структура данных, отвечающая за значение данной физической величины, в противном случае это 0. В теории, сюда можно закинуть рандомные константы для удобства дебага
         {"VO", 0},
@@ -39,6 +42,20 @@ vector <string> claims { // Вектор, хранящий физические 
 };
 
 
+
+// цвет фона
+static sf::Color bgColor;
+// значение цвета по умолчанию
+float color[3] = {0.12f, 0.12f, 0.13f};
+
+// задать цвет фона по вещественному массиву компонент
+static void setColor(float * pDouble){
+    bgColor.r = static_cast<sf::Uint8>(pDouble[0] * 255.f);
+    bgColor.g = static_cast<sf::Uint8>(pDouble[1] * 255.f);
+    bgColor.b = static_cast<sf::Uint8>(pDouble[2] * 255.f);
+}
+
+
 void get_it(vector<string> &var, string equ); // Функция, закладывающая в ПУСТОЙ вектор, переданный по ссылке, величины, известные в формуле
 void get_it_short(vector<string> &var, string equ); // Функция, закладывающая в ПУСТОЙ вектор, переданный по ссылке, величины, известные в формуле, ЗАБИВАЯ на степени. Это удобно, т.к. в некоторых формулах нужна лишь переменная, а ее значение мы знаем, тогда знаем значение ее квадрата и т.п.
 template<typename T> void out_vec (vector<T>& a); // Функция вывода любого вектора
@@ -50,15 +67,18 @@ long double convertation_system_value(string input);
 bool num (char h);
 short num_value(char h);
 int main() {
-    /*
+
     // time
     auto now = chrono::system_clock::now();
     time_t end_time = chrono::system_clock::to_time_t(now);
     cerr << ctime(&end_time) << '\n';
 
+    // пока что отключаем ускоряющие строчки для более удобного дебага
+    /*
     ios_base::sync_with_stdio(false);
     cin.tie(nullptr);
     cout.tie(nullptr);
+     */
     cout.precision(10);
 
     vector<vector<string>> tex; // в этом векторе лежат все данные формул (отсортированные)
@@ -76,49 +96,6 @@ int main() {
     getline(cin, input_full); //  Осторожно, ввод необходимо начинать С ПРОБЕЛА и В ОДНУ СТРОКУ. Используется getline, чтобы программа не зависала при каждом использовании из-за неизвестного количества переменных.
     get_beauty(input_full, input); // теперь в векторе input лежат данные задач
     sort(input.begin(), input.end()); // СОРТИРОВКА ВЕКТОРА ВВОДА, ПРИ ИЗМЕНЕНИИ СПОСОБА ВВОДА ТРЕБУЕТСЯ ОБРАТИТЬ ОСОБОЕ ВНИМАНИЕ
-    */
-
-    // создаём окно для рисования
-    sf::RenderWindow window(sf::VideoMode(1280, 720), "ImGui + SFML = <3");
-    // задаём частоту перерисовки окна
-    window.setFramerateLimit(60);
-    // инициализация imgui+sfml
-    ImGui::SFML::Init(window);
-
-    // переменная таймера
-    sf::Clock deltaClock;
-    // пока окно открыто, запускаем бесконечный цикл
-    while (window.isOpen()) {
-        // создаём событие sfml
-        sf::Event event;
-        // пока окно принимает события
-        while (window.pollEvent(event)) {
-            // отправляем события на обработку sfml
-            ImGui::SFML::ProcessEvent(event);
-
-            // если событие - это закрытие окна
-            if (event.type == sf::Event::Closed) {
-                // закрываем окно
-                window.close();
-            }
-        }
-
-        // запускаем обновление окна по таймеру с заданной частотой
-        ImGui::SFML::Update(window, deltaClock.restart());
-
-        // рисуем демонстрационное окно
-        ImGui::ShowDemoWindow();
-
-        // очищаем окно
-        window.clear();
-        // рисуем по окну средствами imgui+sfml
-        ImGui::SFML::Render(window);
-        // отображаем изменения на окне
-        window.display();
-    }
-
-    // завершаем работу imgui+sfml
-    ImGui::SFML::Shutdown();
 
 
 
@@ -357,3 +334,81 @@ vector<string> find_form(vector<vector <string>> tex, vector<string> claims, vec
  }
 
 */
+
+
+
+
+
+
+
+// тут лежит SFMLщина
+/*
+sf::Font font;
+if(!font.loadFromFile("/Users/admin/Desktop/nk57-monospace-cd-lt-it.ttf"))
+{
+    cout << "error";
+    system("pause");
+}
+sf::Text text;
+text.setFont(font);
+text.setString("Hello WORLD");
+text.setFillColor(sf::Color::Red);
+text.setCharacterSize(240);
+window.draw(text);
+
+
+// создаём окно для рисования
+sf::RenderWindow window(sf::VideoMode(1280, 720), "PhysSolver");
+// задаём частоту перерисовки окна
+window.setFramerateLimit(60);
+// инициализация imgui+sfml
+ImGui::SFML::Init(window);
+
+// задаём цвет фона
+setColor(color);
+
+// переменная таймера
+sf::Clock deltaClock;
+// пока окно открыто, запускаем бесконечный цикл
+while (window.isOpen()) {
+// создаём событие sfml
+sf::Event event;
+// пока окно принимает события
+while (window.pollEvent(event)) {
+// отправляем события на обработку sfml
+ImGui::SFML::ProcessEvent(event);
+
+// если событие - это закрытие окна
+if (event.type == sf::Event::Closed) {
+// закрываем окно
+window.close();
+}
+}
+
+// запускаем обновление окна по таймеру с заданной частотой
+ImGui::SFML::Update(window, deltaClock.restart());
+
+
+// создаём окно управления
+ImGui::Begin("Control");
+
+// Инструмент выбора цвета
+if (ImGui::ColorEdit3("Background color", color)) {
+// код вызывается при изменении значения
+// задаём цвет фона
+setColor(color);
+}
+// конец рисование окна
+ImGui::End();
+
+
+// очищаем окно
+window.clear(bgColor);
+// рисуем по окну средствами imgui+sfml
+ImGui::SFML::Render(window);
+// отображаем изменения на окне
+window.display();
+}
+
+// завершаем работу imgui+sfml
+ImGui::SFML::Shutdown();*/
