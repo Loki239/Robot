@@ -1,16 +1,23 @@
+// стандартные библиотеки
 #include <iostream>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <map>
+
+// графические библиотеки
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
-
 #include <imgui-SFML.h>
 #include <imgui.h>
 
+// локальные классы
+#include "convertation.h"
+#include "rules.h"
+
+// удобные переименования
 #define all(x) (x).begin(),(x).end()
 
 using namespace std;
@@ -68,6 +75,9 @@ bool num (char h);
 short num_value(char h);
 int main() {
 
+    rules testing;
+    testing.start();
+
     // time
     auto now = chrono::system_clock::now();
     time_t end_time = chrono::system_clock::to_time_t(now);
@@ -79,8 +89,11 @@ int main() {
     cin.tie(nullptr);
     cout.tie(nullptr);
      */
+
+    // устанавливаем точность обработки данных
     cout.precision(10);
 
+    /*
     vector<vector<string>> tex; // в этом векторе лежат все данные формул (отсортированные)
     for(int i = 0; i < claims.size(); i++){
         vector <string> var;
@@ -96,7 +109,10 @@ int main() {
     getline(cin, input_full); //  Осторожно, ввод необходимо начинать С ПРОБЕЛА и В ОДНУ СТРОКУ. Используется getline, чтобы программа не зависала при каждом использовании из-за неизвестного количества переменных.
     get_beauty(input_full, input); // теперь в векторе input лежат данные задач
     sort(input.begin(), input.end()); // СОРТИРОВКА ВЕКТОРА ВВОДА, ПРИ ИЗМЕНЕНИИ СПОСОБА ВВОДА ТРЕБУЕТСЯ ОБРАТИТЬ ОСОБОЕ ВНИМАНИЕ
-
+    */
+    string s;
+    cin >> s;
+    Сonvertation d{s};
 
 
     return 0;
