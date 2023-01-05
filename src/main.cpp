@@ -61,7 +61,7 @@ static void setColor(float * pDouble){
     bgColor.g = static_cast<sf::Uint8>(pDouble[1] * 255.f);
     bgColor.b = static_cast<sf::Uint8>(pDouble[2] * 255.f);
 }
-
+pair <long double, string> convert (long double input_convert, string quantity_convert);
 
 void get_it(vector<string> &var, string equ); // Функция, закладывающая в ПУСТОЙ вектор, переданный по ссылке, величины, известные в формуле
 void get_it_short(vector<string> &var, string equ); // Функция, закладывающая в ПУСТОЙ вектор, переданный по ссылке, величины, известные в формуле, ЗАБИВАЯ на степени. Это удобно, т.к. в некоторых формулах нужна лишь переменная, а ее значение мы знаем, тогда знаем значение ее квадрата и т.п.
@@ -110,12 +110,25 @@ int main() {
     get_beauty(input_full, input); // теперь в векторе input лежат данные задач
     sort(input.begin(), input.end()); // СОРТИРОВКА ВЕКТОРА ВВОДА, ПРИ ИЗМЕНЕНИИ СПОСОБА ВВОДА ТРЕБУЕТСЯ ОБРАТИТЬ ОСОБОЕ ВНИМАНИЕ
     */
+    long double vvod;
+    cin >> vvod;
+
     string s;
     cin >> s;
-    Сonvertation d{s};
+
+    pair<long double, string> ans = convert(vvod, s);
+    cout << ans.first << " " << ans.second;
 
 
     return 0;
+}
+
+
+pair <long double, string> convert (long double input_convert, string quantity_convert)
+{
+    Сonvertation struct_convertation{input_convert,quantity_convert};
+    pair<long double, string> an = struct_convertation.convert_in_class();
+    cout << an.first << " " << an.second;
 }
 
 short num_value(char h)
