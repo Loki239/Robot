@@ -4,6 +4,11 @@
 #include <string>
 #include <algorithm>
 #include <map>
+#include <cmath>
+#include <cctype>
+#include <cstring>
+#include <stdexcept>
+
 
 // графические библиотеки
 #include <SFML/Graphics.hpp>
@@ -16,12 +21,16 @@
 // локальные классы
 #include "convertation.h"
 #include "rules.h"
+#include "parser.h"
 
-// удобные переименования
+// удобные переименования (для sort)
 #define all(x) (x).begin(),(x).end()
 
 using namespace std;
-map <string, long double> form { // Структура данных, отвечающая за значение данной физической величины, в противном случае это 0. В теории, сюда можно закинуть рандомные константы для удобства дебага
+
+// Структура данных, отвечающая за значение данной физической величины, в противном случае это 0.
+// В теории, сюда можно закинуть рандомные константы для удобства дебага
+map <string, long double> form {
         {"VO", 0},
         {"t", 0},
         {"t_end", 0},
@@ -30,7 +39,9 @@ map <string, long double> form { // Структура данных, отвеч�
         {"g", 9.81}
 
 };
-map <string, bool> known { // Структура данных, отвечающая за то, знаем ли мы данную физическую величину
+
+// Структура данных, отвечающая за то, знаем ли мы данную физическую величину
+map <string, bool> known {
         {"VO", false},
         {"t",  false},
         {"t_end", false},
@@ -62,10 +73,15 @@ static void setColor(float * pDouble){
     bgColor.b = static_cast<sf::Uint8>(pDouble[2] * 255.f);
 }
 pair <long double, string> convert (long double input_convert, string quantity_convert);
+//long double parsering(const char* pars_input);
+
+
+int errors = 0;
+
 
 void get_it(vector<string> &var, string equ); // Функция, закладывающая в ПУСТОЙ вектор, переданный по ссылке, величины, известные в формуле
 void get_it_short(vector<string> &var, string equ); // Функция, закладывающая в ПУСТОЙ вектор, переданный по ссылке, величины, известные в формуле, ЗАБИВАЯ на степени. Это удобно, т.к. в некоторых формулах нужна лишь переменная, а ее значение мы знаем, тогда знаем значение ее квадрата и т.п.
-template<typename T> void out_vec (vector<T>& a); // Функция вывода любого вектора
+template<typename T> void out_vec (vector<T>& a); // Функция вывода любого вектора (кроме __int128)
 template<typename T> void out_test (vector<T>& a); // Функция тестового вывода вектора (вывод не распространяется в консоль тестирующей системы, в Сlion подсвечивается красным
 inline void get_beauty (string inputt, vector<string>& input);
 bool number_test (string s); // Эта функция проверяет,  является ли строка числом. Необходимо для того, чтобы понять, что на самом деле является неизвестным, а что константой
@@ -73,6 +89,147 @@ vector<string> find_form(vector<vector <string>> tex, vector<string> claims, vec
 long double convertation_system_value(string input);
 bool num (char h);
 short num_value(char h);
+
+struct Expression {
+    Expression(std::string token) : token(token) {}
+    Expression(std::string token, Expression a) : token(token), args{ a } {}
+    Expression(std::string token, Expression a, Expression b) : token(token), args{ a, b } {}
+
+    std::string token;
+    std::vector<Expression> args;
+};
+
+class Parser {
+public:
+    explicit Parser(const char* input) : input(input) {}
+    Expression parse();
+private:
+    std::string parse_token();
+    Expression parse_simple_expression();
+    Expression parse_binary_expression(int min_priority);
+
+    const char* input;
+};
+
+std::string Parser::parse_token() {
+    while (std::isspace(*input)) ++input;
+
+    if (std::isdigit(*input)) {
+        std::string number;
+        while (std::isdigit(*input) || *input == '.') number.push_back(*input++);
+        return number;
+    }
+
+    static const std::string tokens[] =
+            { "+", "-", "**", "*", "/", "mod", "abs", "sin", "cos", "(", ")" };
+    for (auto& t : tokens) {
+        if (std::strncmp(input, t.c_str(), t.size()) == 0) {
+            input += t.size();
+            return t;
+        }
+    }
+
+    return "";
+}
+
+Expression Parser::parse_simple_expression() {
+    auto token = parse_token();
+    if (token.empty()) throw std::runtime_error("Invalid input");
+
+    if (token == "(") {
+        auto result = parse();
+        if (parse_token() != ")") throw std::runtime_error("Expected ')'");
+        return result;
+    }
+
+    if (std::isdigit(token[0]))
+        return Expression(token);
+
+    return Expression(token, parse_simple_expression());
+}
+
+int get_priority(const std::string& binary_op) {
+    if (binary_op == "+") return 1;
+    if (binary_op == "-") return 1;
+    if (binary_op == "*") return 2;
+    if (binary_op == "/") return 2;
+    if (binary_op == "mod") return 2;
+    if (binary_op == "**") return 3;
+    return 0;
+}
+
+Expression Parser::parse_binary_expression(int min_priority) {
+    auto left_expr = parse_simple_expression();
+
+    for (;;) {
+        auto op = parse_token();
+        auto priority = get_priority(op);
+        if (priority <= min_priority) {
+            input -= op.size();
+            return left_expr;
+        }
+
+        auto right_expr = parse_binary_expression(priority);
+        left_expr = Expression(op, left_expr, right_expr);
+    }
+}
+
+Expression Parser::parse() {
+    return parse_binary_expression(0);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double eval(const Expression& e) {
+    switch (e.args.size()) {
+        case 2: {
+            auto a = eval(e.args[0]);
+            auto b = eval(e.args[1]);
+            if (e.token == "+") return a + b;
+            if (e.token == "-") return a - b;
+            if (e.token == "*") return a * b;
+            if (e.token == "/") return a / b;
+            if (e.token == "**") return pow(a, b);
+            if (e.token == "mod") return (int)a % (int)b;
+            throw std::runtime_error("Unknown binary operator");
+        }
+
+        case 1: {
+            auto a = eval(e.args[0]);
+            if (e.token == "+") return +a;
+            if (e.token == "-") return -a;
+            if (e.token == "abs") return abs(a);
+            if (e.token == "sin") return sin(a);
+            if (e.token == "cos") return cos(a);
+            throw std::runtime_error("Unknown unary operator");
+        }
+
+        case 0:
+            return strtod(e.token.c_str(), nullptr);
+    }
+
+    throw std::runtime_error("Unknown expression type");
+
+
+}
+
+
+void test_parser(const char* input, double expected) {
+    try {
+        Parser p(input);
+        long double result = eval(p.parse());
+        if (result == expected) return;
+        std::cout << input << " = " << expected << " : error, got " << result << '\n';
+    }
+    catch (std::exception& e) {
+        std::cout << input << " : exception: " << e.what() << '\n';
+    }
+    ++errors;
+}
+
+long double parser(const char* inp);
+
+
 int main() {
 
     rules testing;
@@ -110,33 +267,42 @@ int main() {
     get_beauty(input_full, input); // теперь в векторе input лежат данные задач
     sort(input.begin(), input.end()); // СОРТИРОВКА ВЕКТОРА ВВОДА, ПРИ ИЗМЕНЕНИИ СПОСОБА ВВОДА ТРЕБУЕТСЯ ОБРАТИТЬ ОСОБОЕ ВНИМАНИЕ
     */
-    long double vvod;
-    cin >> vvod;
 
-    string s;
-    cin >> s;
+    const char* s = "sin(1)+cos(2)";
+    cout << parser(s) << '\n';
 
-    pair<long double, string> ans = convert(vvod, s);
-    cout << ans.first << " " << ans.second;
+
 
 
     return 0;
 }
 
+long double parser(const char* inp)
+{
+    try {
+        Parser p(inp);
+        long double result = eval(p.parse());
+        return result;
+    }
+    catch (std::exception& e) {
+        std::cout << inp << " : exception: " << e.what() << '\n';
+    }
+    ++errors;
+}
 
 pair <long double, string> convert (long double input_convert, string quantity_convert)
 {
     Сonvertation struct_convertation{input_convert,quantity_convert};
-    pair<long double, string> an = struct_convertation.convert_in_class();
-    cout << an.first << " " << an.second;
+    pair<long double, string> answer_convert = struct_convertation.convert_in_class();
+    return answer_convert;
 }
 
-short num_value(char h)
+short num_value(char h) // перевод символа в цифру
 {
     return int(h-'0');
 }
 
-bool num (char h)
+bool num (char h) // проверка на цифру//знак в числе
 {
     int ch = int(h-'0');
     if(ch == 1 || ch == 2 || ch == 3 || ch == 4 || ch == 5 || ch == 6 || ch == 7 || ch == 8 || ch == 9 || ch == 0 || h == '.')

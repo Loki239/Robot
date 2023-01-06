@@ -1,4 +1,4 @@
-add_executable(example main.cpp convertation.cpp convertation.h rules.cpp rules.h)
+add_executable(example main.cpp convertation.cpp convertation.h rules.cpp rules.h parser.cpp parser.h)
 target_link_libraries(example PRIVATE ImGui-SFML::ImGui-SFML)
 
 

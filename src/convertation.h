@@ -69,6 +69,7 @@ namespace std {
         };
 
         // создаем функцию класса для отделения приставки от величины
+
         pair<string, string> div (string inp)
         {
             bool correct_in = false;
@@ -95,9 +96,12 @@ namespace std {
                 // пользователю, что он неправильно ввел данные
 
                 cerr << "CONVERTATION ERROR";
-                return make_pair("In is not connect", " ");
+                return make_pair("In is not connect", "");
             }
+            return make_pair("In is not connect", "");
         }
+
+        // тут создаем нашу функцию для конвертации
 
         pair<long double, string> convert_in_class()
         {
